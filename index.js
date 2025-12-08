@@ -34,6 +34,11 @@ async function run() {
         const result = await addLessonCollection.find().toArray();
         res.send(result);
     });
+    app.get('/addLesson/:id', async (req, res) => {
+        const id = req.params.id
+        const result = await addLessonCollection.findOne({ _id: new ObjectId(id) })
+        res.send(result)
+    })
 
     // POST a new lesson
     app.post('/addLesson', async (req, res) => {
