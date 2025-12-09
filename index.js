@@ -39,6 +39,21 @@ async function run() {
         const result = await addLessonCollection.findOne({ _id: new ObjectId(id) })
         res.send(result)
     })
+     
+    app.get('/myLesson', async (req, res) => {
+        const email = req.query.email;
+        const query = {};
+
+        if (email) {
+            query["author.email"] = email;
+        }
+
+        const cursor = addLessonCollection.find(query).sort({ createdAt: -1 });
+        const result = await cursor.toArray();
+        res.send(result);
+    });
+
+
 
     // POST a new lesson
     app.post('/addLesson', async (req, res) => {
