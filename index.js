@@ -39,7 +39,7 @@ async function run() {
         const result = await addLessonCollection.findOne({ _id: new ObjectId(id) })
         res.send(result)
     })
-     
+
     app.get('/myLesson', async (req, res) => {
         const email = req.query.email;
         const query = {};
@@ -53,12 +53,28 @@ async function run() {
         res.send(result);
     });
 
+    // LIKE button
+    app.patch("/addLesson/like/:id", async (req, res) => {
+        const { id } = req.params;
+
+        const result = await addLessonCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $inc: { likes: 1 } }
+        );
+
+        res.send(result);
+    });
+
+
+
 
 
     // POST a new lesson
     app.post('/addLesson', async (req, res) => {
         const lesson = req.body;
         lesson.createdAt = new Date();
+        lesson.likes = lesson.likes || 0;
+        lesson.favorites = lesson.favorites || 0;
         const result = await addLessonCollection.insertOne(lesson);
         res.send(result);
     });
