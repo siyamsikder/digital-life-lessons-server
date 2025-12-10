@@ -40,6 +40,12 @@ async function run() {
         res.send(result)
     })
 
+    app.delete('/addLesson/:id', async (req, res) => {
+        const id = req.params.id;
+        const result = await addLessonCollection.deleteOne({ _id: new ObjectId(id) });
+        res.send(result);
+    });
+
     app.get('/myLesson', async (req, res) => {
         const email = req.query.email;
         const query = {};
