@@ -65,7 +65,16 @@ async function run() {
         res.send(result);
     });
 
+    // Favoret button
+    app.patch("/addLesson/favorite/:id", async (req, res) => {
+        const { id } = req.params;
+        const result = await addLessonCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $inc: { favorites: 1 } }
+        );
 
+        res.send(result);
+    });
 
 
 
