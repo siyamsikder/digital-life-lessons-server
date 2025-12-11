@@ -58,6 +58,29 @@ async function run() {
         res.send(result);
     });
 
+    // add comment
+    app.patch("/addLesson/comment/:id", async (req, res) => {
+        const id = req.params.id;
+        const { name, photoURL, comment } = req.body;
+
+        const result = await addLessonCollection.updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $push: {
+                    comments: {
+                        name,
+                        photoURL,
+                        comment,
+                        date: new Date(),
+                    },
+                },
+            }
+        );
+
+        res.send(result);
+    });
+
+
     app.get('/myLesson', async (req, res) => {
         const email = req.query.email;
         const query = {};
