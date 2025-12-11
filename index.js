@@ -46,6 +46,18 @@ async function run() {
         res.send(result);
     });
 
+    app.put("/addLesson/:id", async (req, res) => {
+        const id = req.params.id;
+        const updated = req.body;
+
+        const result = await addLessonCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updated }
+        );
+
+        res.send(result);
+    });
+
     app.get('/myLesson', async (req, res) => {
         const email = req.query.email;
         const query = {};
