@@ -6,6 +6,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 3000;
 
+
 // Correct Stripe initialization
 const stripe = require('stripe')(process.env.STRIPE_SECR);
 
@@ -129,6 +130,35 @@ async function run() {
         res.send(result);
     });
 }
+
+//   pament related api
+app.post("/create-checkout-session", async (req, res) => {
+    try {
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            line_items: [
+                {
+                    price_data: {
+                        currency: "bdt",
+                        product_data: {
+                            name: "Premium Plan – Lifetime",
+                        },
+                        unit_amount: 150000, // ৳1500
+                    },
+                    quantity: 1,
+                },
+            ],
+            mode: "payment",
+            success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+            cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
+        });
+
+        res.json({ url: session.url });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 run();
 
