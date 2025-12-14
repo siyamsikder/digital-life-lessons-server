@@ -28,6 +28,7 @@ async function run() {
     await client.connect();
     const db = client.db('life_notes_db');
     const addLessonCollection = db.collection('addLesson');
+    const usersCollection = db.collection("users");
 
     console.log("Connected to MongoDB successfully!");
 
@@ -132,6 +133,23 @@ async function run() {
         res.send(result);
     });
 }
+
+app.post("/users", async (req, res) => {
+    const user = req.body;
+    const query = { email: user.email };
+
+    const isExist = await usersCollection.findOne(query);
+
+    if (isExist) {
+        return res.send({ message: "User already exists" });
+    }
+
+    user.isPremium = false;
+    user.createdAt = new Date();
+
+    const result = await usersCollection.insertOne(user);
+    res.send(result);
+});
 
 
 //   pament related api
