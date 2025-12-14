@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { securityRules } = require('firebase-admin');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -32,7 +33,7 @@ async function run() {
 
     // GET all lessons
     app.get('/addLesson', async (req, res) => {
-        const result = await addLessonCollection.find().toArray();
+        const result = await addLessonCollection.find().sort({ _id: -1 }).toArray();
         res.send(result);
     });
     app.get('/addLesson/:id', async (req, res) => {
@@ -80,6 +81,7 @@ async function run() {
 
         res.send(result);
     });
+
 
 
     app.get('/myLesson', async (req, res) => {
@@ -131,33 +133,61 @@ async function run() {
     });
 }
 
+
 //   pament related api
+
 app.post("/create-checkout-session", async (req, res) => {
     try {
+        const paymentInfo = req.body;
+
         const session = await stripe.checkout.sessions.create({
-            payment_method_types: ["card"],
             line_items: [
                 {
                     price_data: {
-                        currency: "bdt",
+                        currency: "usd",
                         product_data: {
                             name: "Premium Plan – Lifetime",
                         },
-                        unit_amount: 150000, // ৳1500
+                        unit_amount: 1500, // $15.00
                     },
                     quantity: 1,
                 },
             ],
             mode: "payment",
-            success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+            customer_email: paymentInfo.senderEmail,
+            metadata: {
+                paymentId: paymentInfo.paymentId,
+            },
+            success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
         });
 
         res.json({ url: session.url });
+
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 });
+
+app.patch("/payment-success", async (req, res) => {
+    const sessionId = req.query.session_id;
+    const session = await stripe.checkout.session.retrieve(sessionId)
+    console.log('session retrieve', success)
+    if (session.payment_status === "paid") {
+        const userId = session.metadata.userId;
+        const query = { _id: new ObjectId(userId) }
+        const update = {
+            $set: {
+                isPremium: true,
+                premiumSince: new Date(),
+                paymentSessionId: session.id,
+            }
+        }
+    }
+    res.send({ success: true })
+})
+
 
 
 run();
