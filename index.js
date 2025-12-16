@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const { securityRules } = require('firebase-admin');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -29,7 +28,6 @@ async function run() {
     const db = client.db('life_notes_db');
     const addLessonCollection = db.collection('addLesson');
     const usersCollection = db.collection("users");
-
     console.log("Connected to MongoDB successfully!");
 
     // GET all lessons
@@ -122,6 +120,32 @@ async function run() {
     });
 
 
+    // save or update user in db
+    app.post("/users", async (req, res) => {
+        const user = req.body;
+
+        const result = await usersCollection.updateOne(
+            { email: user.email },
+            { $set: user },
+            { upsert: true }
+        );
+
+        res.send(result);
+    });
+
+    app.get("/users", async (req, res) => {
+        const result = await usersCollection.find().toArray();
+        res.send(result);
+    });
+    
+    app.get("/users/:email", async (req, res) => {
+        const email = req.params.email;
+        const result = await usersCollection.findOne({ email });
+        res.send(result);
+    });
+
+
+
 
     // POST a new lesson
     app.post('/addLesson', async (req, res) => {
@@ -133,23 +157,6 @@ async function run() {
         res.send(result);
     });
 }
-
-app.post("/users", async (req, res) => {
-    const user = req.body;
-    const query = { email: user.email };
-
-    const isExist = await usersCollection.findOne(query);
-
-    if (isExist) {
-        return res.send({ message: "User already exists" });
-    }
-
-    user.isPremium = false;
-    user.createdAt = new Date();
-
-    const result = await usersCollection.insertOne(user);
-    res.send(result);
-});
 
 
 //   pament related api
@@ -198,8 +205,6 @@ app.patch("/payment-success", async (req, res) => {
         const update = {
             $set: {
                 isPremium: true,
-                premiumSince: new Date(),
-                paymentSessionId: session.id,
             }
         }
     }
