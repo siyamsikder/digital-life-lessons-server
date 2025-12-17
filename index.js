@@ -99,25 +99,55 @@ async function run() {
     // LIKE button
     app.patch("/addLesson/like/:id", async (req, res) => {
         const { id } = req.params;
+        const { email } = req.body;
+
+        const lesson = await addLessonCollection.findOne({ _id: new ObjectId(id) });
+
+        const alreadyLiked = lesson.likes.includes(email);
+
+        const update = alreadyLiked
+            ? {
+                $pull: { likes: email },
+                $inc: { likesCount: -1 },
+            }
+            : {
+                $addToSet: { likes: email },
+                $inc: { likesCount: 1 },
+            };
 
         const result = await addLessonCollection.updateOne(
             { _id: new ObjectId(id) },
-            { $inc: { likes: 1 } }
+            update
         );
 
         res.send(result);
     });
+
 
     // Favoret button
     app.patch("/addLesson/favorite/:id", async (req, res) => {
         const { id } = req.params;
+        const { email } = req.body;
+        const lesson = await addLessonCollection.findOne({ _id: new ObjectId(id) });
+        const alreadyFav = lesson.favorites.includes(email);
+        const update = alreadyFav
+            ? {
+                $pull: { favorites: email },
+                $inc: { favoritesCount: -1 },
+            }
+            : {
+                $addToSet: { favorites: email },
+                $inc: { favoritesCount: 1 },
+            };
+
         const result = await addLessonCollection.updateOne(
             { _id: new ObjectId(id) },
-            { $inc: { favorites: 1 } }
+            update
         );
 
         res.send(result);
     });
+
 
 
     // save or update user in db
@@ -143,7 +173,7 @@ async function run() {
         const result = await usersCollection.findOne({ email });
         res.send(result);
     });
-    
+
     app.patch("/users/:email", async (req, res) => {
         const email = req.params.email;
         const updateData = req.body;
@@ -158,17 +188,19 @@ async function run() {
 
 
 
-
-
     // POST a new lesson
-    app.post('/addLesson', async (req, res) => {
+    app.post("/addLesson", async (req, res) => {
         const lesson = req.body;
+
         lesson.createdAt = new Date();
-        lesson.likes = lesson.likes || 0;
-        lesson.favorites = lesson.favorites || 0;
+        lesson.likes = [];
+        lesson.favorites = [];
+        lesson.comments = [];
+
         const result = await addLessonCollection.insertOne(lesson);
         res.send(result);
     });
+
 }
 
 
