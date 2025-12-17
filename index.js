@@ -148,6 +148,15 @@ async function run() {
         res.send(result);
     });
 
+    app.get("/favorites", async (req, res) => {
+        const email = req.query.email;
+
+        const result = await addLessonCollection
+            .find({ favorites: email })
+            .toArray();
+
+        res.send(result);
+    });
 
 
     // save or update user in db
