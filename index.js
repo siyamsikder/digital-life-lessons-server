@@ -23,11 +23,13 @@ const client = new MongoClient(uri, {
     },
 });
 
+let usersCollection;
+
 async function run() {
     await client.connect();
     const db = client.db('life_notes_db');
     const addLessonCollection = db.collection('addLesson');
-    const usersCollection = db.collection("users");
+    usersCollection = db.collection("users");
     console.log("Connected to MongoDB successfully!");
 
     // GET all lessons
@@ -177,29 +179,24 @@ async function run() {
         res.send(result);
     });
 
-    app.get("/users/:email", async (req, res) => {
+
+
+    // ✅ specific first
+    app.get('/users/role/:email', async (req, res) => {
         const email = req.params.email;
         const result = await usersCollection.findOne({ email });
-        res.send(result);
+        res.send({ role: result?.role });
     });
 
-    app.patch("/users/:email", async (req, res) => {
+    // ✅ generic last
+    app.get("/users/:email", async (req, res) => {
         const email = req.params.email;
-        const updateData = req.body;
-
-        const result = await usersCollection.updateOne(
-            { email },
-            { $set: updateData }
-        );
-
-        res.send(result);
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+            return res.status(404).send({ message: "User not found" });
+        }
+        res.send(user);
     });
-
-    app.get('/users/role/:email', async(req,res)=>{
-        const email=req.params.email
-        const result=await usersCollection.findOne({email})
-        res.send({role:result?.role})
-    })
 
     // POST a new lesson
     app.post("/addLesson", async (req, res) => {
@@ -219,56 +216,86 @@ async function run() {
 
 //   pament related api
 
+
 app.post("/create-checkout-session", async (req, res) => {
+    const BDT_PRICE = 1500;
+    const USD_RATE = 126.89;
+    const USD_AMOUNT = Math.round((BDT_PRICE / USD_RATE) * 100);
     try {
-        const paymentInfo = req.body;
+        const { senderEmail } = req.body;
+
+        if (!senderEmail) {
+            return res.status(400).send({ error: "Email is required" });
+        }
 
         const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
             line_items: [
                 {
                     price_data: {
                         currency: "usd",
+                        unit_amount: USD_AMOUNT,
                         product_data: {
-                            name: "Premium Plan – Lifetime",
+                            name: "Premium Membership",
+                            description: "Lifetime access to premium features"
                         },
-                        unit_amount: 1500, // $15.00
                     },
                     quantity: 1,
                 },
             ],
             mode: "payment",
-            customer_email: paymentInfo.senderEmail,
+            customer_email: senderEmail,
             metadata: {
-                paymentId: paymentInfo.paymentId,
+                email: senderEmail
             },
-            success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancel`,
+            success_url: `${process.env.SITE_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.SITE_DOMAIN}/payment-cancel`,
         });
 
-        res.json({ url: session.url });
-
+        res.send({ url: session.url });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: error.message });
+        console.error("Stripe Session Error:", error);
+        res.status(500).send({ error: error.message });
     }
 });
 
+// 1️⃣ Payment verification & DB update
 app.patch("/payment-success", async (req, res) => {
     const sessionId = req.query.session_id;
-    const session = await stripe.checkout.session.retrieve(sessionId)
-    console.log('session retrieve', success)
-    if (session.payment_status === "paid") {
-        const userId = session.metadata.userId;
-        const query = { _id: new ObjectId(userId) }
-        const update = {
-            $set: {
-                isPremium: true,
-            }
-        }
+    console.log(sessionId)
+    if (!sessionId) {
+        return res.status(400).json({ error: "Session ID is required" });
     }
-    res.send({ success: true })
-})
 
+    try {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== "paid") {
+            return res.status(400).json({ error: "Payment not verified" });
+        }
+        const userEmail = session.metadata?.email;
+        console.log(userEmail)
+        if (!userEmail) {
+            return res.status(400).json({ error: "Email not found in session metadata" });
+        }
+        if (!usersCollection) {
+            return res.status(500).json({ error: "Database collection not initialized" });
+        }
+        const result = await usersCollection.updateOne(
+            { email: userEmail },
+            { $set: { isPremium: true } }
+        );
+        console.log("MongoDB update result:", result);
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        res.json({ success: true, message: "Premium status updated!" });
+
+    } catch (err) {
+        console.error("Payment verification error:", err);
+        res.status(500).json({ error: "Server error", details: err.message });
+    }
+});
 
 
 run();
