@@ -92,6 +92,19 @@ async function run() {
         res.send({ success: true, insertedId: result.insertedId });
     });
 
+    app.get("/reports", async (req, res) => {
+        const result = await reportsCollection.find().sort({ createdAt: -1 }).toArray();
+        res.send(result);
+    });
+
+
+    app.delete("/reports/clear/:lessonId", async (req, res) => {
+        const lessonId = req.params.lessonId;
+        const result = await reportsCollection.deleteMany({ lessonId });
+        res.send(result);
+    });
+
+
 
     app.get('/myLesson', async (req, res) => {
         const email = req.query.email;
