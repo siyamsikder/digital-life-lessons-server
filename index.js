@@ -30,6 +30,7 @@ async function run() {
     const db = client.db('life_notes_db');
     const addLessonCollection = db.collection('addLesson');
     usersCollection = db.collection("users");
+    const reportsCollection = db.collection("reports");
     console.log("Connected to MongoDB successfully!");
 
     // GET all lessons
@@ -82,7 +83,14 @@ async function run() {
 
         res.send(result);
     });
+    //  reports api
+    app.post("/reports", async (req, res) => {
+        const report = req.body;
+        report.createdAt = new Date();
 
+        const result = await reportsCollection.insertOne(report);
+        res.send({ success: true, insertedId: result.insertedId });
+    });
 
 
     app.get('/myLesson', async (req, res) => {
